@@ -110,18 +110,17 @@
         .tab-panel { display: none; flex: 1 1 auto; overflow-y: auto; padding: 20px 24px 40px; }
         .tab-panel.active { display: block; }
 
-        /* 5 columns; each row sized so 4 rows fill the viewport */
+        /* Responsive grid - cards size themselves, no longer locked to a fixed viewport-based layout */
         .grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 18px;
         }
         .card {
             position: relative;
             display: block;
-            height: calc((100vh - 200px) / 4 - 12px);
-            min-height: 120px;
-            border-radius: 8px;
+            aspect-ratio: 3 / 4;
+            border-radius: 12px;
             overflow: hidden;
             text-decoration: none;
             color: #fff;
@@ -206,35 +205,71 @@
             display: inline-block;
         }
         .section-title:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+        .card.photo { aspect-ratio: 1 / 1; }
         .card.photo img { object-fit: cover; }
 
-        /* Live third-party embeds (Instagram / Threads / Pinterest) render at their
-           own natural size, so these sections wrap freely instead of using the fixed grid. */
+        /* Live third-party embeds (Instagram / Threads) render at their own natural
+           size, so this section wraps freely instead of using the fixed grid. */
         .embed-row {
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
         }
-        .embed-placeholder {
-            width: 300px;
-            min-height: 360px;
-            border-radius: 12px;
+        .embed-live { position: relative; min-width: 236px; }
+
+        /* Pagination controls */
+        .pager {
             display: flex;
-            align-items: center;
             justify-content: center;
-            text-align: center;
-            padding: 24px;
-            color: #fff;
-            font-family: 'Inter', sans-serif;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            opacity: .9;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 28px 0 12px;
         }
-        .embed-placeholder.instagram { background: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); }
-        .embed-placeholder.threads   { background: #101010; }
-        .embed-live { min-width: 236px; }
+        .pager button {
+            font-family: 'Inter', sans-serif;
+            background: none;
+            border: 1px solid var(--hairline);
+            color: var(--charcoal-soft);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: .3px;
+            padding: 8px 14px;
+            min-width: 38px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .pager button:hover:not(:disabled) { border-color: var(--gold); color: var(--charcoal); }
+        .pager button.active { background: var(--charcoal); color: var(--ivory); border-color: var(--charcoal); }
+        .pager button:disabled { opacity: .35; cursor: default; }
+        .pager .ellipsis {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            color: var(--charcoal-soft);
+            padding: 0 4px;
+        }
+
+        /* Per-card hide control - lets you permanently dismiss a broken or unwanted link */
+        .hide-btn {
+            position: absolute;
+            top: 8px; right: 8px;
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            background: rgba(17, 15, 13, .6);
+            color: #fff;
+            border: none;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0;
+            transition: opacity .15s, background .15s;
+            z-index: 5;
+        }
+        .card:hover .hide-btn,
+        .embed-live:hover .hide-btn { opacity: 1; }
+        .hide-btn:hover { background: var(--gold-deep); }
 
         /* Lightbox for viewing gallery photos at full resolution */
         .lightbox {
@@ -280,8 +315,7 @@
         <div id="bedroom-groups"></div>
 
         <h2 class="section-title">Gallery</h2>
-        <div class="count" id="bedroom-photo-count"></div>
-        <div class="grid" id="bedroom-photo-grid"></div>
+        <div id="bedroom-photo-section"></div>
     </section>
 
     <div class="lightbox" id="lightbox">
@@ -677,6 +711,121 @@
         "https://youtube.com/shorts/0ZfrrUz0TC4?si=XyKhpMeMbgn5Sj9a"
     ];
 
+    // ---------- hidden-links persistence ----------
+    // Some YouTube videos get deleted/made private, and some Instagram/Threads posts
+    // become unavailable. Broken YouTube thumbnails are detected automatically; for
+    // Instagram/Threads (rendered in a cross-origin iframe we can't inspect), a small
+    // hide button on every card lets you dismiss anything by hand. Hidden items are
+    // remembered across visits.
+    const HIDDEN_STORAGE_KEY = "homeIdeasHiddenLinks";
+    const hiddenKeys = (function () {
+        try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_STORAGE_KEY) || "[]")); }
+        catch (e) { return new Set(); }
+    })();
+    function persistHidden() {
+        try { localStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(Array.from(hiddenKeys))); }
+        catch (e) { /* localStorage unavailable - hiding still works for this session */ }
+    }
+    function makeHideBtn(onClick) {
+        const btn = document.createElement("button");
+        btn.className = "hide-btn";
+        btn.type = "button";
+        btn.title = "Hide this";
+        btn.setAttribute("aria-label", "Hide this item");
+        btn.textContent = "×";
+        btn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            onClick();
+        });
+        return btn;
+    }
+
+    // ---------- pagination ----------
+    // Renders one page of items at a time so the initial load only ever creates a
+    // handful of DOM nodes/network requests per section, however many links it holds.
+    function renderPaginated(container, entries, pageSize, itemsClassName, cardFactory, label) {
+        let list = entries.filter(function (e) { return !hiddenKeys.has(e.key); });
+        let page = 0;
+
+        const countEl = document.createElement("div");
+        countEl.className = "count";
+        const itemsEl = document.createElement("div");
+        itemsEl.className = itemsClassName;
+        const pagerEl = document.createElement("div");
+        pagerEl.className = "pager";
+
+        container.appendChild(countEl);
+        container.appendChild(itemsEl);
+        container.appendChild(pagerEl);
+
+        function totalPages() { return Math.max(1, Math.ceil(list.length / pageSize)); }
+
+        function onHide(key) {
+            hiddenKeys.add(key);
+            persistHidden();
+            list = list.filter(function (e) { return e.key !== key; });
+            if (page > totalPages() - 1) page = totalPages() - 1;
+            render();
+        }
+
+        function goTo(p) {
+            page = Math.max(0, Math.min(totalPages() - 1, p));
+            render();
+            countEl.scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+
+        function renderPager() {
+            pagerEl.innerHTML = "";
+            const tp = totalPages();
+            if (tp <= 1) return;
+
+            const prev = document.createElement("button");
+            prev.textContent = "‹ Prev";
+            prev.disabled = page === 0;
+            prev.addEventListener("click", function () { goTo(page - 1); });
+            pagerEl.appendChild(prev);
+
+            const keep = new Set([0, tp - 1, page, page - 1, page + 1]);
+            const pages = Array.from(keep).filter(function (p) { return p >= 0 && p < tp; }).sort(function (a, b) { return a - b; });
+
+            let last = -1;
+            pages.forEach(function (p) {
+                if (last !== -1 && p - last > 1) {
+                    const dots = document.createElement("span");
+                    dots.className = "ellipsis";
+                    dots.textContent = "···";
+                    pagerEl.appendChild(dots);
+                }
+                const btn = document.createElement("button");
+                btn.textContent = String(p + 1);
+                if (p === page) btn.className = "active";
+                btn.addEventListener("click", function () { goTo(p); });
+                pagerEl.appendChild(btn);
+                last = p;
+            });
+
+            const next = document.createElement("button");
+            next.textContent = "Next ›";
+            next.disabled = page === tp - 1;
+            next.addEventListener("click", function () { goTo(page + 1); });
+            pagerEl.appendChild(next);
+        }
+
+        function render() {
+            itemsEl.innerHTML = "";
+            const start = page * pageSize;
+            list.slice(start, start + pageSize).forEach(function (entry) {
+                itemsEl.appendChild(cardFactory(entry, onHide));
+            });
+            const tp = totalPages();
+            countEl.textContent = list.length + " " + label + (tp > 1 ? " · page " + (page + 1) + " of " + tp : "");
+            renderPager();
+        }
+
+        render();
+    }
+
     // ---------- rendering ----------
     function classify(url) {
         let m;
@@ -712,7 +861,8 @@
         pinterest: "Pinterest", threads: "Threads", link: "Other Links"
     };
 
-    function buildCard(url) {
+    function buildCard(entry, onHide) {
+        const url = entry.url;
         const info = classify(url);
         const a = document.createElement("a");
         a.className = "card";
@@ -725,6 +875,12 @@
             img.loading = "lazy";
             img.src = "https://i.ytimg.com/vi/" + info.id + "/hqdefault.jpg";
             img.alt = "YouTube Short";
+            // A deleted/private video either 404s or falls back to YouTube's fixed
+            // 120x90 "no thumbnail" placeholder - either way, treat it as broken.
+            img.addEventListener("error", function () { onHide(info.key); });
+            img.addEventListener("load", function () {
+                if (img.naturalWidth === 120 && img.naturalHeight === 90) onHide(info.key);
+            });
             a.appendChild(img);
             const badge = document.createElement("span");
             badge.className = "badge";
@@ -745,18 +901,20 @@
             a.appendChild(ico);
             a.appendChild(name);
         }
+        a.appendChild(makeHideBtn(function () { onHide(info.key); }));
         return a;
     }
 
     // ---------- live embeds (Instagram / Threads) ----------
     // These platforms only expose real thumbnails via their official embed widgets,
     // which render full post cards (not square thumbnails) and fetch from the platform
-    // client-side. With hundreds of links, embedding everything at once would be slow
-    // and risks the platform throttling requests - so each one loads lazily, only once
-    // it scrolls near the viewport.
+    // client-side. Pagination already caps each page at a handful of items, so embeds
+    // render immediately rather than needing a separate lazy-load step.
     // (Pinterest's widget was tried too, but its dynamic-rebuild API never actually
     // fetches pin data for content added after the initial page load - a known
-    // limitation of their widget - so Pinterest keeps the branded tile instead.)
+    // limitation of their widget - so Pinterest keeps the branded tile instead. And
+    // since these render inside a cross-origin iframe, a "post not available" state
+    // can't be detected automatically - the hide button on each card covers that.)
     const EMBED_TYPES = new Set(["instagram", "threads"]);
 
     function loadScriptOnce(src, id) {
@@ -778,7 +936,7 @@
 
     const scheduleInstagramProcess = debounce(function () {
         if (window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process();
-    }, 200);
+    }, 150);
 
     const scheduleThreadsProcess = debounce(function () {
         // Threads' embed.js has no documented public "reprocess" API, but a script
@@ -788,42 +946,27 @@
         s.async = true;
         s.src = "https://www.threads.com/embed.js";
         document.body.appendChild(s);
-    }, 200);
+    }, 150);
 
-    const lazyEmbedObserver = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-            if (!entry.isIntersecting) return;
-            lazyEmbedObserver.unobserve(entry.target);
-            renderLiveEmbed(entry.target);
-        });
-    }, { rootMargin: "600px 0px" });
-
-    function renderLiveEmbed(placeholder) {
-        const type = placeholder.dataset.embedType;
-        const url = placeholder.dataset.url;
-        placeholder.className = "embed-live";
+    function buildLiveEmbed(entry, onHide) {
+        const type = entry.type;
+        const url = entry.url;
+        const wrapper = document.createElement("div");
+        wrapper.className = "embed-live";
 
         if (type === "instagram") {
-            placeholder.innerHTML =
+            wrapper.innerHTML =
                 '<blockquote class="instagram-media" data-instgrm-permalink="' + url +
                 '" data-instgrm-version="14" style="margin:0;"></blockquote>';
             scheduleInstagramProcess();
         } else if (type === "threads") {
-            placeholder.innerHTML =
+            wrapper.innerHTML =
                 '<blockquote class="text-post-media" data-text-post-permalink="' + url +
                 '" data-text-post-version="0" style="margin:0;"></blockquote>';
             scheduleThreadsProcess();
         }
-    }
-
-    function buildEmbedPlaceholder(type, url) {
-        const div = document.createElement("div");
-        div.className = "embed-placeholder " + type;
-        div.dataset.embedType = type;
-        div.dataset.url = url;
-        div.textContent = "Loading " + GROUP_NAMES[type] + " preview…";
-        lazyEmbedObserver.observe(div);
-        return div;
+        wrapper.appendChild(makeHideBtn(function () { onHide(entry.key); }));
+        return wrapper;
     }
 
     function renderGrouped(containerId, links) {
@@ -855,15 +998,18 @@
 
             const heading = document.createElement("h2");
             heading.className = "section-title";
-            heading.textContent = GROUP_NAMES[type] + " (" + urls.length + ")";
+            heading.textContent = GROUP_NAMES[type];
             container.appendChild(heading);
 
-            const wrap = document.createElement("div");
-            wrap.className = EMBED_TYPES.has(type) ? "embed-row" : "grid";
-            urls.forEach(function (u) {
-                wrap.appendChild(EMBED_TYPES.has(type) ? buildEmbedPlaceholder(type, u) : buildCard(u));
-            });
-            container.appendChild(wrap);
+            const isEmbed = EMBED_TYPES.has(type);
+            const entries = urls.map(function (u) { return { url: u, key: classify(u).key, type: type }; });
+            const pageSize = isEmbed ? 9 : 24;
+
+            renderPaginated(
+                container, entries, pageSize, isEmbed ? "embed-row" : "grid",
+                isEmbed ? buildLiveEmbed : buildCard,
+                GROUP_NAMES[type].toLowerCase()
+            );
         });
     }
 
@@ -914,32 +1060,32 @@
         "IMG-20260524-WA0009.jpg"
     ];
 
-    function buildPhotoCard(filename) {
-        const path = "Gallery/Bedroom/" + filename;
+    function buildPhotoCard(entry, onHide) {
+        const path = entry.url;
         const a = document.createElement("a");
         a.className = "card photo";
         a.href = path;
-        a.dataset.full = path;
         const img = document.createElement("img");
         img.loading = "lazy";
         img.decoding = "async";
         img.src = path;
-        img.alt = filename;
+        img.alt = entry.key;
         a.appendChild(img);
         a.addEventListener("click", function (e) {
             e.preventDefault();
             openLightbox(path);
         });
+        a.appendChild(makeHideBtn(function () { onHide(entry.key); }));
         return a;
     }
 
-    function renderPhotos(gridId, countId, filenames) {
-        const grid = document.getElementById(gridId);
-        filenames.forEach(function (f) { grid.appendChild(buildPhotoCard(f)); });
-        document.getElementById(countId).textContent = filenames.length + " photos";
+    function renderPhotos(containerId, filenames) {
+        const container = document.getElementById(containerId);
+        const entries = filenames.map(function (f) { return { url: "Gallery/Bedroom/" + f, key: "photo:" + f }; });
+        renderPaginated(container, entries, 24, "grid", buildPhotoCard, "photos");
     }
 
-    renderPhotos("bedroom-photo-grid", "bedroom-photo-count", bedroomPhotos);
+    renderPhotos("bedroom-photo-section", bedroomPhotos);
 
     // ---------- lightbox (shows the original, full-resolution file) ----------
     const lightbox = document.getElementById("lightbox");
