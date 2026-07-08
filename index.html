@@ -208,6 +208,34 @@
         .section-title:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
         .card.photo img { object-fit: cover; }
 
+        /* Live third-party embeds (Instagram / Threads / Pinterest) render at their
+           own natural size, so these sections wrap freely instead of using the fixed grid. */
+        .embed-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .embed-placeholder {
+            width: 300px;
+            min-height: 360px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: .9;
+        }
+        .embed-placeholder.instagram { background: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); }
+        .embed-placeholder.threads   { background: #101010; }
+        .embed-live { min-width: 236px; }
+
         /* Lightbox for viewing gallery photos at full resolution */
         .lightbox {
             display: none;
@@ -720,6 +748,84 @@
         return a;
     }
 
+    // ---------- live embeds (Instagram / Threads) ----------
+    // These platforms only expose real thumbnails via their official embed widgets,
+    // which render full post cards (not square thumbnails) and fetch from the platform
+    // client-side. With hundreds of links, embedding everything at once would be slow
+    // and risks the platform throttling requests - so each one loads lazily, only once
+    // it scrolls near the viewport.
+    // (Pinterest's widget was tried too, but its dynamic-rebuild API never actually
+    // fetches pin data for content added after the initial page load - a known
+    // limitation of their widget - so Pinterest keeps the branded tile instead.)
+    const EMBED_TYPES = new Set(["instagram", "threads"]);
+
+    function loadScriptOnce(src, id) {
+        if (document.getElementById(id)) return;
+        const s = document.createElement("script");
+        s.id = id;
+        s.async = true;
+        s.src = src;
+        document.body.appendChild(s);
+    }
+
+    function debounce(fn, wait) {
+        let t;
+        return function () {
+            clearTimeout(t);
+            t = setTimeout(fn, wait);
+        };
+    }
+
+    const scheduleInstagramProcess = debounce(function () {
+        if (window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process();
+    }, 200);
+
+    const scheduleThreadsProcess = debounce(function () {
+        // Threads' embed.js has no documented public "reprocess" API, but a script
+        // tag re-executes every time it's inserted - so re-inserting it re-scans
+        // the page for any unprocessed blockquotes.
+        const s = document.createElement("script");
+        s.async = true;
+        s.src = "https://www.threads.com/embed.js";
+        document.body.appendChild(s);
+    }, 200);
+
+    const lazyEmbedObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            lazyEmbedObserver.unobserve(entry.target);
+            renderLiveEmbed(entry.target);
+        });
+    }, { rootMargin: "600px 0px" });
+
+    function renderLiveEmbed(placeholder) {
+        const type = placeholder.dataset.embedType;
+        const url = placeholder.dataset.url;
+        placeholder.className = "embed-live";
+
+        if (type === "instagram") {
+            placeholder.innerHTML =
+                '<blockquote class="instagram-media" data-instgrm-permalink="' + url +
+                '" data-instgrm-version="14" style="margin:0;"></blockquote>';
+            scheduleInstagramProcess();
+        } else if (type === "threads") {
+            placeholder.innerHTML =
+                '<blockquote class="text-post-media" data-text-post-permalink="' + url +
+                '" data-text-post-version="0" style="margin:0;"></blockquote>';
+            scheduleThreadsProcess();
+        }
+    }
+
+    function buildEmbedPlaceholder(type, url) {
+        const div = document.createElement("div");
+        div.className = "embed-placeholder " + type;
+        div.dataset.embedType = type;
+        div.dataset.url = url;
+        div.textContent = "Loading " + GROUP_NAMES[type] + " preview…";
+        lazyEmbedObserver.observe(div);
+        return div;
+    }
+
     function renderGrouped(containerId, links) {
         const seen = new Set();
         const groups = {};
@@ -730,6 +836,9 @@
             seen.add(info.key);
             (groups[info.type] = groups[info.type] || []).push(u);
         });
+
+        if (groups.instagram) loadScriptOnce("https://www.instagram.com/embed.js", "instagram-embed-script");
+        if (groups.threads) loadScriptOnce("https://www.threads.com/embed.js", "threads-embed-script");
 
         const container = document.getElementById(containerId);
 
@@ -749,10 +858,12 @@
             heading.textContent = GROUP_NAMES[type] + " (" + urls.length + ")";
             container.appendChild(heading);
 
-            const grid = document.createElement("div");
-            grid.className = "grid";
-            urls.forEach(function (u) { grid.appendChild(buildCard(u)); });
-            container.appendChild(grid);
+            const wrap = document.createElement("div");
+            wrap.className = EMBED_TYPES.has(type) ? "embed-row" : "grid";
+            urls.forEach(function (u) {
+                wrap.appendChild(EMBED_TYPES.has(type) ? buildEmbedPlaceholder(type, u) : buildCard(u));
+            });
+            container.appendChild(wrap);
         });
     }
 
