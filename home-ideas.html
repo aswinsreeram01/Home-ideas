@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Ideas</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            background: #fafafa;
+            color: #262626;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            text-align: center;
+            padding: 16px 16px 4px;
+            flex: 0 0 auto;
+        }
+        header h1 { font-size: 22px; margin: 0; }
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #dbdbdb;
+            padding: 0 16px;
+            margin-top: 10px;
+            flex: 0 0 auto;
+        }
+        .tab-btn {
+            background: none; border: none;
+            border-bottom: 3px solid transparent;
+            padding: 8px 18px; font-size: 14px; font-weight: 600;
+            color: #8e8e8e; cursor: pointer;
+            transition: color .15s, border-color .15s;
+        }
+        .tab-btn:hover { color: #262626; }
+        .tab-btn.active { color: #262626; border-bottom-color: #dc2743; }
+
+        .tab-panel { display: none; flex: 1 1 auto; overflow-y: auto; padding: 10px; }
+        .tab-panel.active { display: block; }
+
+        /* 5 columns; each row sized so 4 rows fill the viewport */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+        .card {
+            position: relative;
+            display: block;
+            height: calc((100vh - 130px) / 4 - 8px);
+            min-height: 120px;
+            border-radius: 10px;
+            overflow: hidden;
+            text-decoration: none;
+            color: #fff;
+            background: #222;
+            box-shadow: 0 1px 4px rgba(0,0,0,.12);
+            transition: transform .12s, box-shadow .12s;
+        }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.22); }
+        .card img {
+            width: 100%; height: 100%;
+            object-fit: cover; display: block;
+        }
+        /* Branded (no-thumbnail) tiles */
+        .card.brand {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; padding: 8px; gap: 6px;
+        }
+        .card.brand .ico { font-size: 26px; font-weight: 800; }
+        .card.brand .name { font-size: 12px; font-weight: 700; letter-spacing: .3px; }
+        .brand.instagram { background: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); }
+        .brand.facebook  { background: #1877f2; }
+        .brand.threads   { background: #101010; }
+        .brand.pinterest { background: #e60023; }
+        .brand.link      { background: #555; }
+
+        /* platform badge on thumbnail cards */
+        .badge {
+            position: absolute; top: 6px; left: 6px;
+            background: rgba(0,0,0,.65);
+            font-size: 10px; font-weight: 700;
+            padding: 2px 6px; border-radius: 4px;
+            letter-spacing: .3px;
+        }
+        .play {
+            position: absolute; inset: 0; margin: auto;
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,.55); border-radius: 50%;
+            pointer-events: none;
+        }
+        .play::after {
+            content: ""; margin-left: 3px;
+            border-left: 12px solid #fff;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+        }
+        .count { font-size: 12px; color: #8e8e8e; padding: 4px 4px 8px; }
+    </style>
+</head>
+<body>
+    <header><h1>Home Ideas</h1></header>
+
+    <nav class="tabs">
+        <button class="tab-btn active" data-tab="bedroom">BedRoom</button>
+    </nav>
+
+    <section id="bedroom" class="tab-panel active">
+        <div class="count" id="bedroom-count"></div>
+        <div class="grid" id="bedroom-grid"></div>
+    </section>
+
+    <script>
+    // ---- Add more links here anytime (any platform). ----
+    const bedroomLinks = [
+        "https://www.instagram.com/reel/DaaPM34gpR1/?igsh=bThmemcxMTd4cTM1",
+        "https://youtube.com/shorts/400rLcZzBIo?si=3U5vSUs7rZDJ6604",
+        "https://youtube.com/shorts/k9t8cja9WGA?si=9h8_8JL6a0ldGQvI",
+        "https://youtube.com/shorts/k9t8cja9WGA?si=YRj4uFBuUKiPD9iD",
+        "https://youtube.com/shorts/Q75Q-rmE73I?si=8KEP7gnTMio1W2Xp",
+        "https://youtube.com/shorts/WjMaI-VrvNM?si=e0aIpQ6T3_sgZ8Xe",
+        "https://youtube.com/shorts/jibYcHyfz8g?si=wE2kFfSHHh66vM7A",
+        "https://youtube.com/shorts/JI3EU1GUF6A?si=hNuPYLrg1s_RRf6a",
+        "https://youtube.com/shorts/cSwYQPbvv_o?si=XU3IHU0ugHFEj_Sz",
+        "https://youtube.com/shorts/UtwRqbrkyT4?si=Epo6-F2BwMKOPlQB",
+        "https://youtube.com/shorts/WZNSZJpakRA?si=0ub0v8kEK7H7kSU6",
+        "https://youtube.com/shorts/fsXkhntIjpw?si=Zt9Z5WKh2qhBXk6q",
+        "https://youtube.com/shorts/iN_IkZX9AAg?si=gcnz-ok5C3tbgTmv",
+        "https://youtube.com/shorts/cqod1V2NaEo?si=-pSYoH7I-phuGn8F",
+        "https://youtube.com/shorts/EwU_ezzOBgw?si=P6KMZIyvSgmrJw1C",
+        "https://youtube.com/shorts/iJ4ig3zbnP8?si=XpyP5QvywEyreQ7h",
+        "https://youtube.com/shorts/29oYwaGBimM?si=PUmukZ5JethSijpZ",
+        "https://youtube.com/shorts/eh-n_Sj8Kek?si=beCBGUdKWe7HsS5Y",
+        "https://youtube.com/shorts/iU7DXfSPc6U?si=F_KDH2QiyLmJDIwi",
+        "https://youtube.com/shorts/yf_1YQ_bUEA?si=7Yxex6cTVWlyFzJL",
+        "https://youtube.com/shorts/Z5d77WxpE_A?si=AuI5QV6P4ytO5o4-",
+        "https://youtube.com/shorts/KATpdXullaQ?si=Z-AkaVysUfug32mt",
+        "https://youtube.com/shorts/gXCv_rxERbA?si=RJLdKrsrGl26jLWH",
+        "https://youtube.com/shorts/dznH7AwmWEc?si=RtiBTdfZP1dEidIp",
+        "https://youtube.com/shorts/gXCv_rxERbA?si=RACE1FJeKrR6POpk",
+        "https://youtube.com/shorts/YdnnZFJ3IVI?si=tluyPQH6T-0yRm15",
+        "https://youtube.com/shorts/YdnnZFJ3IVI?si=tluyPQH6T-0yRm15",
+        "https://youtube.com/shorts/P2zmwdi3X0E?si=Wc1vtmY_aAhrzRBH",
+        "https://youtube.com/shorts/Ny7H_No3lIU?si=Emb2EJgDdizzYmjP",
+        "https://youtube.com/shorts/25TRk3qZEYg?si=S-_d90VEbR6GUu6A",
+        "https://youtube.com/shorts/59gjjklGvG8?si=4Hz-D_e_mD6_b-97",
+        "https://youtube.com/shorts/wF0zDPLVAtc?si=mOqLA0gLyHT34Qfu",
+        "https://youtube.com/shorts/6iuaHbBanos?si=8Y5M4XaWNUGPbF16",
+        "https://youtube.com/shorts/C3h9POWSkuw?si=NEVTjgdbWHJrAmZ4",
+        "https://youtube.com/shorts/Ra_tkz1lojU?si=Fj_PpREd7d6I5Vs5",
+        "https://youtube.com/shorts/UmGhpsXiJSM?si=1cWSTJV5md1KlQes",
+        "https://youtube.com/shorts/AyBznAV7utY?si=bdT8lQOh17ZgoLqG",
+        "https://youtube.com/shorts/z6X6kJ0XbV0?si=LsYuVkE4IEC-92eL",
+        "https://youtube.com/shorts/HuvBYMEBv0k?si=7So5mnsDMI115oML",
+        "https://youtube.com/shorts/wXu-vhtltd0?si=d4QdkkXGvzV1C8j9",
+        "https://youtube.com/shorts/_0IO12e4ujU?si=r_nZIsa69ObLMKsK",
+        "https://youtube.com/shorts/m27m9Cd7Kpw?si=fW0hLRSFa8FNYvP9",
+        "https://youtube.com/shorts/P-Dw9FETxmQ?si=kP9WoDCBwgFaio8u",
+        "https://youtube.com/shorts/MVyitdfDMjk?si=9wZAR5pwZTgqCn5S",
+        "https://youtube.com/shorts/8IMiZu5ak5M?si=EucySDPyhowKqMy1",
+        "https://youtube.com/shorts/JvXmcxS8wGQ?si=16mLgC9V4zK7TDI3",
+        "https://youtube.com/shorts/usukvp-MtqM?si=A8-aFGNp84PI41ov",
+        "https://youtube.com/shorts/1rc5vno3g8M?si=LvCrzu6_lXVqqwhS",
+        "https://youtube.com/shorts/1ZKs97BRaQ4?si=1Nver8bjdNPRkVaQ",
+        "https://youtube.com/shorts/MCASvF8uLos?si=YZ98gh1NiGxz1KT3",
+        "https://youtube.com/shorts/tAxRm7ilhf0?si=0b_PZIkBvgBLMaV9",
+        "https://youtube.com/shorts/oJF2MzfBE98?si=vScfvgmu6-JXPYRf",
+        "https://youtube.com/shorts/mtEvGndyPuc?si=z04t_uwYT30DEZzn",
+        "https://youtube.com/shorts/LRiF1OBphBs?si=idnDkQq2w0KnBxHd",
+        "https://youtube.com/shorts/EshnUZoXq6c?si=QYn2w0pvUkTzr0sC",
+        "https://youtube.com/shorts/0wqupWlH0ec?si=5X0JUsrYc8bGFySr",
+        "https://youtube.com/shorts/F7mUf_2ioks?si=6zMVFlA9Dswy4Fc3",
+        "https://youtube.com/shorts/-7SJXtrOfsc?si=o5ec1uRP4yGfgfQ-",
+        "https://youtube.com/shorts/3FHQUdyN17M?si=pOuZWUf10PG3T6Z5",
+        "https://youtube.com/shorts/EfDaK4fTmgE?si=R_P8OD1cEhEtVRua",
+        "https://youtube.com/shorts/mNpRieN2hFc?si=TGjvRwf50hGbvtED",
+        "https://youtube.com/shorts/mP7gQyLRsAY?si=_MToKIhoIT4H5XwU",
+        "https://youtube.com/shorts/UQMGryFAveU?si=lkZXj_P12okm_C1e",
+        "https://youtube.com/shorts/I0AyBJgD9F0?si=KpAgFe3db76KxZee",
+        "https://youtube.com/shorts/tRqoeZJ-Wsk?si=Yg003Js7wH1Mx_YD",
+        "https://youtube.com/shorts/8haSchFqLV4?si=gw-MN2uzqugbPZBY",
+        "https://youtube.com/shorts/rrdc2dAfVwE?si=suQn3YMyBluatE3D",
+        "https://youtube.com/shorts/lAX71yFbas4?si=4cXFn4-o0QohetAU",
+        "https://youtube.com/shorts/t3Tf2BA8SRk?si=e6wFyyVdh67qVKmw",
+        "https://youtube.com/shorts/8D6V6yb3UKM?si=orsUu7gAgPU4FiO9",
+        "https://youtube.com/shorts/2pTkb_WQ5t8?si=G2wK3o_9uwhXRqMZ",
+        "https://youtube.com/shorts/K1_cW50vx0E?si=6TopusD9o9vD9cpH",
+        "https://youtube.com/shorts/Gbm1Nj1woM8?si=1hAnON1gpfweOBA0",
+        "https://youtube.com/shorts/xpYj-Xiz0fs?si=nloHJKAQP1s-AltC",
+        "https://youtube.com/shorts/9FS6HBHfUTw?si=Q7I7gadvqRACViyN",
+        "https://youtube.com/shorts/SWIuKTG-f6k?si=0IIvPGMbV3VKzRWq",
+        "https://youtube.com/shorts/AqoQNwkzbM8?si=0QlMW5yCpNaCFfv1",
+        "https://youtube.com/shorts/RAXYFxPXewY?si=QmhtbeeC0GGCJpQd",
+        "https://youtube.com/shorts/N4e31PLuVdw?si=jmctcI7499ALVPqI",
+        "https://youtube.com/shorts/FYNCNE3_1sY?si=LeEWsjBPxLNtJ6wd",
+        "https://youtube.com/shorts/WYoIqE8Lt6A?si=bxBPsiOem19Yi7Ip",
+        "https://youtube.com/shorts/JcUtioUXocU?si=WaVzKGKwY8dAAtld",
+        "https://youtube.com/shorts/nE9G4jw341w?si=3uT5XZ7rr7S7lH3y",
+        "https://youtube.com/shorts/H1l3StJgN8c?si=DlGe__N9vG4okpgV",
+        "https://youtube.com/shorts/yaSp-iq0VLI?si=clM4VNahUeCboviM",
+        "https://youtube.com/shorts/SUNSBokILxk?si=oqby4JmtPaAQm3bh",
+        "https://youtube.com/shorts/iQjozydWFSU?si=v63_HxrSV1sAiyq9",
+        "https://youtube.com/shorts/aR1XtxS0GpE?si=zWdtZwgS8dvzHFrJ",
+        "https://youtube.com/shorts/XRy6xt2PNEo?si=4rg_YbnxOqvEoqJa",
+        "https://youtube.com/shorts/hl-GtxPRUYw?si=4CwnyKbGT2XfGtc6",
+        "https://youtube.com/shorts/9raZ5N1KJEk?si=kkayN8grfNT8Zm81",
+        "https://youtube.com/shorts/bgC2MFPboqE?si=5T2oSKSrNgmWcB97",
+        "https://youtube.com/shorts/PxLO_mOdL4k?si=XyhIyLBxzl1yoF5L",
+        "https://youtube.com/shorts/9BUPIbj3ICQ?si=hfcv3JL2jX-U-iGF",
+        "https://youtube.com/shorts/iwtgPszrf6Q?si=RbOizdRriw1b1gjd",
+        "https://youtube.com/shorts/YFl6xrdf1sw?si=AuBeDXhAfvpskpQ6",
+        "https://youtube.com/shorts/Fgf2vewGgjU?si=0Tf6VDzaIc73aeJi",
+        "https://youtube.com/shorts/6LGyi1M-0Nw?si=x9r-lxw5SIyEk2IS",
+        "https://youtube.com/shorts/ch8NIJYI2Fs?si=RhiAIrVePTqJXr6_",
+        "https://youtube.com/shorts/YsBSaVePXgk?si=ov0LngJg3eLjxJmv",
+        "https://youtube.com/shorts/K_WlMWuTAMs?si=wW6xV9MS99EKh0ey",
+        "https://youtube.com/shorts/OhpJLDzVT3c?si=Ib8MUuMqjIqQZWv2",
+        "https://youtube.com/shorts/Ox5_Nl3c-6Y?si=KrOKscbKosg4TMIV",
+        "https://pin.it/7xJ8DgW1M",
+        "https://youtube.com/shorts/XGKRUH50Mxo?si=u8kr8JCT-Kvfv-li",
+        "https://youtube.com/shorts/_EaRr0cBaco?si=t8fjzxFXyvfpry6-",
+        "https://youtube.com/shorts/kNNtcQQFq_Y?si=Xh6NU6OzQDIRQuKk",
+        "https://youtube.com/shorts/xPcojr6vnZo?si=6JPc9wgERov4S1QT",
+        "https://youtube.com/shorts/9Fmx3-drx_M?si=t3lPRRA1NJ5KpeXN",
+        "https://youtube.com/shorts/X48QrdtGAA0?si=xFtVL3AJdWnauQmx",
+        "https://youtube.com/shorts/RP7eyDL5Pp8?si=hywaaJ9192ttLlqi",
+        "https://youtube.com/shorts/fKzadD0WVkE?si=1qBR9zh8RUanIiIo",
+        "https://youtube.com/shorts/F8gzmgoWRds?si=aj25vF2L15ubvms8",
+        "https://youtube.com/shorts/pzxZErF4-6Y?si=D-M4gbv1J7SDnY7s",
+        "https://youtube.com/shorts/Me_22UsGoAs?si=ui90CSb9me_CNICL",
+        "https://youtube.com/shorts/mXWlApqm7hY?si=z9jcZY5MhXf2Oncy",
+        "https://youtube.com/shorts/U2wIsmEYHhI?si=0ZhR-jHp_qe_L6RG",
+        "https://youtube.com/shorts/ivAHv57OAZk?si=4SIZMwJQsLWSZ65c",
+        "https://youtube.com/shorts/ZCTZTFNK0uw?si=UCkG0DW3gN-GErQx",
+        "https://youtube.com/shorts/P7Dfc4JaS_I?si=h8nJKW4UZBDPN4dK",
+        "https://youtube.com/shorts/lbK7KEeuXq8?si=4m_0GmHx1sgib0MY",
+        "https://youtube.com/shorts/HKt6GKdHpiU?si=e4BdQ2e1D7ZHzJe5",
+        "https://youtube.com/shorts/EYuGxmwkRys?si=eVq7eQp5xtCbsQws",
+        "https://youtube.com/shorts/1-4MLyHFDeQ?si=VtmY8mHatJhi4GwX",
+        "https://youtube.com/shorts/b08Lt0a3TFw?si=_7mRrDVO6eHfyhIe",
+        "https://youtube.com/shorts/f7ztkxVxcTI?si=TUyyHaLrQ0XuzzlW",
+        "https://pin.it/4bsztrF1M",
+        "https://pin.it/42Kq8c1V4",
+        "https://youtube.com/shorts/vZpe5lcxg_w?si=lDoZIxOgnP-uHafa",
+        "https://youtube.com/shorts/2zI2t6qr8JY?si=F5lOj0q5mBxj2NJ8",
+        "https://youtube.com/shorts/R20-H7ymVbA?si=Shsf-ScLuUCoe4vK",
+        "https://youtube.com/shorts/yHCE0P2oV9U?si=eUiPJQQDmQzpBPh7",
+        "https://youtube.com/shorts/OpzoYgiq59k?si=g0ec2AyTKqFP23oL",
+        "https://youtube.com/shorts/ae3K1L1H6yw?si=x1haFVjZJi1en4qz",
+        "https://youtube.com/shorts/AQLzcFNfagY?si=AOzOf9Qb6DcJLaOk",
+        "https://youtube.com/shorts/3tv9ARxElIE?si=obt-XFMLMiTIU759",
+        "https://youtube.com/shorts/-mzSptWg1ks?si=EyGs7xWRauKGMAlg",
+        "https://youtube.com/shorts/3tv9ARxElIE?si=obt-XFMLMiTIU759",
+        "https://youtube.com/shorts/vG9caTCktCs?si=od7io-9IKJnI4Gh8",
+        "https://youtube.com/shorts/yhLrr0SK6yk?si=DbTcB6sUSY4zbXXnllp",
+        "https://youtube.com/shorts/yhLrr0SK6yk?si=DbTcB6sUSY4zbXXn",
+        "https://youtube.com/shorts/Oi_dyAXKViM?si=dm1l2edkmDGbmna2",
+        "https://youtube.com/shorts/1cItLYtAkNk?si=rBOQgy1uOTc6tP5p",
+        "https://youtube.com/shorts/fgoajFvXec8?si=vpFUgAyg11iUiTK8",
+        "https://youtube.com/shorts/6Aovmxk5_R0?si=W_rcb9FBFXB-TGg4",
+        "https://youtube.com/shorts/EM-enIbbpM4?si=z2EECyNqsu2syFWK",
+        "https://youtube.com/shorts/2Ry0-o4M644?si=DYbtx_q3_YQQ1dpW",
+        "https://youtube.com/shorts/SLh2whsFGA0?si=bRhBH2b5tX1d2L9C",
+        "https://youtube.com/shorts/PhtETPExUKY?si=f73EjZOIIXCUkXil",
+        "https://youtube.com/shorts/l7mOOIxfKDg?si=KH-k0KjTRPOKhIvB",
+        "https://www.threads.com/@architouch_design/post/DVjCsYVju-0",
+        "https://www.threads.com/@_inscapeinteriors/post/DVldnCHDnN9",
+        "https://www.facebook.com/share/r/1AqL2cruZJ/",
+        "https://www.facebook.com/share/r/1D6iGS1GWd/",
+        "https://www.facebook.com/share/r/1SxszBBPep/",
+        "https://www.instagram.com/reel/DVpQYTik4I_/?igsh=bTR0dzA1dG02cHl1",
+        "https://www.instagram.com/reel/C3GWgvzydrl/?igsh=MXRjM2gybnNzaG5zYg==",
+        "https://www.instagram.com/reel/DVliM-ik3h2/?igsh=MTd4MGc4c3d5OWsyYQ==",
+        "https://www.instagram.com/reel/DVjCe8lCZa2/?igsh=MWRhb3F2eWw4cDgwbw==",
+        "https://www.threads.com/@the_designtouch_official/post/DVpth1DAaCv",
+        "https://www.instagram.com/reel/DUj5s2qCB_S/?igsh=MWZkcTI4Y2ZidGUxMA==",
+        "https://www.facebook.com/share/r/1PP4NpYQsM/",
+        "https://www.facebook.com/share/r/1BK4qL8hNd/",
+        "https://www.facebook.com/share/r/1CfpSznhEn/",
+        "https://www.facebook.com/share/r/183rU6RcQF/",
+        "https://www.facebook.com/share/r/1BL418RUvo/",
+        "https://www.facebook.com/share/r/1Ds13RaA8a/",
+        "https://www.facebook.com/share/r/1NTY1nWQ6n/",
+        "https://www.facebook.com/share/r/14TTidkBUqM/",
+        "https://www.facebook.com/share/r/1CNUtHHMPy/",
+        "https://www.facebook.com/share/r/14WsrW5XwUv/",
+        "https://www.facebook.com/share/r/1C1bV685Qg/",
+        "https://www.facebook.com/share/r/1DQhmTy6X2/",
+        "https://www.facebook.com/share/r/1ChbN5U76t/",
+        "https://www.facebook.com/share/r/1FEYV5fENg/",
+        "https://www.facebook.com/share/r/1Gu3r3dhwc/",
+        "https://www.facebook.com/share/r/1CesxbdDz9/",
+        "https://www.facebook.com/share/r/18HSrCe7hS/",
+        "https://www.facebook.com/share/r/1DTedzdumP/",
+        "https://www.facebook.com/share/r/1GXDXFk1Np/",
+        "https://www.facebook.com/share/r/18De1LjaHS/",
+        "https://www.facebook.com/share/r/1Ak5SNfzKh/",
+        "https://www.facebook.com/share/r/1CqHWWq5Bw/",
+        "https://www.facebook.com/share/r/1CRoFUnKKy/",
+        "https://www.facebook.com/share/r/1b65UcmAGc/",
+        "https://www.facebook.com/share/r/1C1bV685Qg/",
+        "https://www.facebook.com/share/r/1C6BS2oyZp/",
+        "https://www.facebook.com/share/r/1Ae4UQ7RHj/",
+        "https://www.facebook.com/share/r/1DG57UDkAZ/",
+        "https://www.facebook.com/share/r/1DwjNPWkAg/",
+        "https://www.facebook.com/share/r/18V12qkX2g/",
+        "https://www.facebook.com/share/r/1Dpzx8EytU/",
+        "https://www.facebook.com/share/r/1AtHyCRhyp/",
+        "https://www.facebook.com/share/r/1K98aWADH8/",
+        "https://www.facebook.com/share/r/1AhRYegQPx/",
+        "https://www.facebook.com/share/r/1DQVeUTSqZ/",
+        "https://www.facebook.com/share/r/1FHVZ4G5gm/",
+        "https://www.facebook.com/share/r/18DgZYka5E/",
+        "https://www.facebook.com/share/r/1C9J9Vh9AD/",
+        "https://www.facebook.com/share/r/1B1hTTqdyE/",
+        "https://www.facebook.com/share/r/1Hw1HKXfGZ/",
+        "https://www.facebook.com/share/r/1DSZobjpQB/",
+        "https://www.facebook.com/share/r/1Bbagn1ACP/",
+        "https://www.facebook.com/share/r/1DS3FDS51R/",
+        "https://youtube.com/shorts/Yp3514XUZc8?si=l1KyhscSFxeDtkmT",
+        "https://youtube.com/shorts/ytwT5UydlbM?si=nz-X-T8b11-IwAq9",
+        "https://youtube.com/shorts/CflWnCdSWmo?si=wOjibL0sxu0Ldbms",
+        "https://youtube.com/shorts/qMqCc45L8F4?si=REJsEJDk4UHO8gaF",
+        "https://youtube.com/shorts/Ce1SnLlwZe4?si=hxjMsFzYKpyLM0DH",
+        "https://www.facebook.com/share/r/1HZcb1f9ZU/",
+        "https://youtu.be/Yf3uzLW0Bqs?si=0F8olJhDqL0VWTyZ",
+        "https://www.facebook.com/share/v/1bEJahWVjD/",
+        "https://youtube.com/shorts/9bEmM8auMKw?si=4-970_N-BLZeLk8-",
+        "https://www.instagram.com/reel/DSZ7yuOAXmX/?igsh=MWc4OXhuMWhvNmE1aQ==",
+        "https://www.instagram.com/reel/DVvxAxtDvPe/?igsh=cGN1N2x2NWRyZ2d1",
+        "https://www.instagram.com/reel/DVWQTU3k0HW/?igsh=Ym4wdW1zdzQ2c3U5",
+        "https://www.facebook.com/share/r/17RJcfGRih/",
+        "https://www.instagram.com/reel/DWjVnLVgbTE/?igsh=MTY0bWtweGxiZXdwYQ==",
+        "https://www.instagram.com/reel/DWjVnLVgbTE/?igsh=MTY0bWtweGxiZXdwYQ==",
+        "https://www.instagram.com/reel/DWVTsBZCPKT/?igsh=bm0xOW8zYWtsbnk5",
+        "https://www.instagram.com/reel/DVBadUOEf2f/?igsh=MXM2cmo1ZGkxczM0cA==",
+        "https://www.instagram.com/reel/DV6CHGyicnn/?igsh=MWR6Y2tsc2c0aXR3ZA==",
+        "https://www.instagram.com/reel/DV3W8gcDCoh/?igsh=MWp6YnRvZW41Zzd3NA==",
+        "https://www.instagram.com/reel/DWfOW1Xjt2w/?igsh=MWliZ2s4czY5amE0cg==",
+        "https://www.instagram.com/reel/DWAzZJRABGS/?igsh=NmFnZDk4dW9uemMw",
+        "https://www.instagram.com/reel/DWYweAuEpsB/?igsh=bGUxajRjNXd0dWZk",
+        "https://www.instagram.com/reel/DVis1bLEuqJ/?igsh=MWF4YXVzcnBpYWxxbw==",
+        "https://www.instagram.com/reel/DVBNYU0kusu/?igsh=ajR0OHY5cm9zamM0",
+        "https://www.instagram.com/reel/DUfvLQ1kshL/?igsh=amthcmVvdGJhejMx",
+        "https://www.instagram.com/reel/DTsPVKKEhd3/?igsh=MXdrMnNkdjdkZ211NQ==",
+        "https://www.instagram.com/reel/DTnF5EFEi0x/?igsh=MXR5dDYxdWg2MThoNA==",
+        "https://www.instagram.com/reel/DTnF5EFEi0x/?igsh=MXR5dDYxdWg2MThoNA==",
+        "https://www.instagram.com/reel/DTINUi9jQWy/?igsh=NHdnZm9kMGxmMWtj",
+        "https://www.instagram.com/reel/DSr3aGhEk41/?igsh=bXFhNjZkOHN2M2I4",
+        "https://www.instagram.com/reel/DSAF0JREork/?igsh=MW1ldHUzN3E4bjJzeg==",
+        "https://www.instagram.com/reel/DRmXE_nEoQl/?igsh=MXc0M283OXZzM3U2dQ==",
+        "https://www.instagram.com/reel/DRMrqvZkozL/?igsh=dzl3cGo0cnFuNzR6",
+        "https://www.instagram.com/reel/DWrcu_nAfTp/?igsh=MW12MG84ejNpMWgybQ==",
+        "https://www.instagram.com/reel/DVOAAhdCSZn/?igsh=Z2xrZW54emZ0OHN0",
+        "https://www.instagram.com/reel/DTwgLOljIz7/?igsh=bDVpcW05OWYxdno=",
+        "https://www.instagram.com/reel/DVFGvMSkjcp/?igsh=MnBuMWR3OWhyZGtq",
+        "https://youtube.com/shorts/ybNwlWrnng0?si=yq4Y7GJ_QJewJ8gK",
+        "https://www.instagram.com/reel/DWBOSgkiTGD/?igsh=MTkyM2I2a2t6ZzBhaA==",
+        "https://www.instagram.com/reel/DWnmuZdE4_E/?igsh=MW80ZmNneWtuYzMwbg==",
+        "https://www.instagram.com/reel/DUqEgI0EmVO/?igsh=NzdocXJqaXViYTVt",
+        "https://www.instagram.com/reel/DVOI6S_kqbz/?igsh=dGI2dmo2Z3l2eDV2",
+        "https://www.facebook.com/share/r/189S35eQTj/",
+        "https://www.facebook.com/share/r/1E4eQ16UCD/",
+        "https://www.facebook.com/share/r/18VrRdk99g/",
+        "https://www.facebook.com/share/r/1J9u2jjSa3/",
+        "https://www.facebook.com/share/r/14Y8w7Xffvx/",
+        "https://www.facebook.com/share/r/1DsEnERDEw/",
+        "https://www.facebook.com/share/r/1CHV9oGa5D/",
+        "https://www.facebook.com/share/r/1QjHQXKgiY/",
+        "https://www.facebook.com/share/r/18a5KgUKXH/",
+        "https://www.facebook.com/share/r/17V7Hkm99P/",
+        "https://www.facebook.com/share/r/184y5kE1vH/",
+        "https://www.facebook.com/share/r/1FGwwRvGkn/",
+        "https://www.facebook.com/share/r/18KVKkzBKn/",
+        "https://www.facebook.com/share/r/1Jb3wiZPVz/",
+        "https://www.facebook.com/share/r/1CRXb3dnV9/",
+        "https://www.facebook.com/share/r/1HRWxUWaoZ/",
+        "https://www.facebook.com/share/r/1GbA4zhErY/",
+        "https://www.instagram.com/reel/DWt-jKmjbqW/?igsh=anlvcXY4NmJ1M2Vt",
+        "https://www.facebook.com/share/r/18aQpSigq7/",
+        "https://www.facebook.com/share/r/1CD7FkhCN9/",
+        "https://www.facebook.com/share/r/17Y29wAv2x/",
+        "https://pin.it/3BPXciGHh",
+        "https://pin.it/1zyFAq9SB",
+        "https://pin.it/45ly7O0NH",
+        "https://pin.it/5b3HHOePv",
+        "https://pin.it/2Dmj8NVEB",
+        "https://www.instagram.com/reel/DWZBv8OEj_h/?igsh=M2pzamdlaTJscjFv",
+        "https://www.instagram.com/p/DWr6-8vl5Po/?igsh=MTk3bDFoejFiZ2hreg==",
+        "https://www.instagram.com/reel/C4infVtJ7Z_/?igsh=MXFlbm5jYXBvb3RuZg==",
+        "https://youtube.com/shorts/h_ENSfKcSQw?si=IhTKYdfmQpExh7tj",
+        "https://www.facebook.com/share/r/18VJzApWRJ/",
+        "https://www.facebook.com/share/r/1DTifxoQKH/",
+        "https://www.facebook.com/share/r/18HokT1XAr/",
+        "https://www.instagram.com/reel/DXD82NuSfhV/?igsh=eWUzOW1qYXRscm1s",
+        "https://pin.it/4T615dSOK",
+        "https://youtube.com/shorts/PVdxz6IQB3A?si=w6quTnSWDrlqbeD_",
+        "https://youtube.com/shorts/_Zd5K8BRIIE?si=vkUc_VlGApGiahab",
+        "https://youtube.com/shorts/yZToPFMx8H4?si=F5KhSbwJFoF5okbJ",
+        "https://www.facebook.com/share/r/1FPrCYwJHH/",
+        "https://www.facebook.com/share/r/1Avt1o9JoK/",
+        "https://www.facebook.com/share/r/1JMfL1inJa/",
+        "https://www.instagram.com/reel/DXb7xZWtIQX/?igsh=bW5pZDJhZmE2ZGtn",
+        "https://www.instagram.com/reel/DXedZ06N4Q3/?igsh=MXBzMXMzZ3c0Yzk4Mg==",
+        "https://www.instagram.com/reel/DXZbri4tFlO/?igsh=MXhzbjNncWcyajhweQ==",
+        "https://www.instagram.com/reel/DXWvEn4N764/?igsh=MWgxMWl6enJ4N2R1eA==",
+        "https://www.instagram.com/reel/DW1SQ3mNOMx/?igsh=NnNoNjRzMTVhaDN6",
+        "https://www.facebook.com/share/r/18R3EQBBks/",
+        "https://www.instagram.com/reel/DTe6cHyDA0K/?igsh=MWc5NXRycGYyenNieg==",
+        "https://youtube.com/shorts/_qRbLwPW45k?si=tnDNOzXupD7iMpqX",
+        "https://www.instagram.com/reel/DXcAqXeTOTZ/?igsh=aG5oc3ByNnV2bjhr",
+        "https://www.threads.com/@tiffany_design_studio/post/DX7r-xEl57-",
+        "https://www.threads.com/@interiorsby_vamsee/post/DX7E8pXEsqU",
+        "https://www.instagram.com/reel/DWBjCF9iE68/?igsh=MW9pem9qbWd0djZzYw==",
+        "https://www.instagram.com/reel/DX5VfbngYur/?igsh=MTJiaW45eG14Z3Y1eg==",
+        "https://www.instagram.com/reel/DW80tj_yu0H/?igsh=NmQxZnJsdXd4d3Jx",
+        "https://www.instagram.com/reel/DWmr8CRkyuE/?igsh=MXdyZ2h5Y2hyeDdldw==",
+        "https://www.instagram.com/reel/DU5r2SlE9XL/?igsh=MXA0OXJhM2ttZXM3NA==",
+        "https://www.instagram.com/reel/DXJXxmsEz78/?igsh=eXkyMndocmJqYndn",
+        "https://www.instagram.com/reel/DXJV_87jO7H/?igsh=Mnc3aWV0bGV1cmZx",
+        "https://www.instagram.com/reel/DU5jCI8Dc0O/?igsh=dWxxcHEwZzJjYXgw",
+        "https://www.instagram.com/reel/DXEu8ClCWrI/?igsh=dTN6ZXp2a204ZzRv",
+        "https://www.threads.com/@wood_co_lnterior__kitchen_fito/post/DYABhSvjUht",
+        "https://www.instagram.com/reel/DWq5S7bk75P/?igsh=emY4Y2lid2x3dzMw",
+        "https://www.facebook.com/share/r/1Hxj5HUM1a/",
+        "https://www.instagram.com/reel/DXrwxnAAEI9/?igsh=MXBvaW5oYTBzYXdteA==",
+        "https://youtube.com/shorts/PlU80XmvSvw?si=35XeaNTYGinwxQ33",
+        "https://www.facebook.com/share/r/1EZz3MMzoR/",
+        "https://www.facebook.com/share/r/18baDpuvAr/",
+        "https://www.facebook.com/share/r/1TytA8u51y/",
+        "https://youtube.com/shorts/PM__2wrW1yk?si=FK1FpQnB-IVyJPRx",
+        "https://www.facebook.com/share/r/1B5mz2aHpw/",
+        "https://www.facebook.com/share/r/18V2wCka9o/",
+        "https://www.threads.com/@desire2designstudio/post/DYRk_CGAcUM",
+        "https://www.threads.com/@wood_co_lnterior__kitchen_fito/post/DYR47fADdru",
+        "https://www.threads.com/@wood_co_lnterior__kitchen_fito/post/DYR47fQDTuB",
+        "https://www.instagram.com/reel/DX1hWRLARmy/?igsh=aXIyM2VkcjZhdWs3",
+        "https://www.instagram.com/reel/DX1hWRLARmy/?igsh=aXIyM2VkcjZhdWs3",
+        "https://www.threads.com/@phamhainhadep/post/DYZMiubD0Ip",
+        "https://www.facebook.com/share/r/1CBzS2nyah/",
+        "https://youtube.com/shorts/ddzqb62YKbw?si=OQ0mPH0q2pzLmDFQ",
+        "https://www.facebook.com/share/r/18iyf4AMGe/",
+        "https://www.instagram.com/reel/DYYuVyjIQfe/?igsh=dXgwM2l0eThubjQ1",
+        "https://www.instagram.com/reel/DYMvejNIm--/?igsh=MTgzZGQ0bTg3amRyZQ==",
+        "https://www.instagram.com/reel/DYrjloLB5zu/?igsh=MThqbnZ1c3dvc2k4Ng==",
+        "https://www.facebook.com/share/r/1BYTWPQyTk/",
+        "https://www.instagram.com/reel/DZEPWv0Teek/?igsh=eWdzdW85dG8ydnEz",
+        "https://www.facebook.com/share/r/1Ng8jNUc3s/",
+        "https://www.instagram.com/reel/DY17Nt9yUiB/?igsh=MWhuZDh0aWxvaXI5bg==",
+        "https://youtube.com/shorts/o0XrQg7Zir4?si=ctDVE8WabT5P5QgQ",
+        "https://youtube.com/shorts/ftfTZQ7tyNg?si=1XrpFThUjecgMKm6",
+        "https://www.instagram.com/reel/DQ9MEcHDA4g/?igsh=MWgxa3ZsM3g2cTd1MA==",
+        "https://www.instagram.com/reel/DWx629vk7ac/?igsh=MWJ2dHhxaWowemZudQ==",
+        "https://youtube.com/shorts/c20EeDMzXMU?si=_j8fgqI81EWBnIDG",
+        "https://youtube.com/shorts/_qUYcVnLmiA?si=xG0_UGv2Snjw9Dca",
+        "https://www.facebook.com/share/r/1Cgvf47TCQ/",
+        "https://www.facebook.com/share/r/1HKzepJKQy/",
+        "https://www.facebook.com/share/r/18mkPadF4R/",
+        "https://www.facebook.com/share/r/1CDEn36dox/",
+        "https://www.facebook.com/share/r/1DaiBpt5SL/",
+        "https://www.facebook.com/share/r/1FUHumRpTr/",
+        "https://www.facebook.com/share/r/192EH7Xf8p/",
+        "https://www.facebook.com/share/r/1EoxP3Yiqm/",
+        "https://www.facebook.com/share/r/1BLtKXnPjJ/",
+        "https://www.facebook.com/share/r/1b71qDDqZ1/",
+        "https://www.facebook.com/share/r/1d28fTZLJ6/",
+        "https://www.facebook.com/share/r/18wvnNEabC/",
+        "https://www.facebook.com/share/r/195M5aWsQV/",
+        "https://www.facebook.com/share/r/1Gn97mai8L/",
+        "https://www.facebook.com/share/r/1EoxP3Yiqm/",
+        "https://www.facebook.com/share/r/18Tfyo2MYr/",
+        "https://www.facebook.com/share/r/1CosuoeKBw/",
+        "https://www.facebook.com/share/r/1LBuJ368Pq/",
+        "https://www.facebook.com/share/r/18PwbN8Z7h/",
+        "https://www.facebook.com/share/r/18aFHncnt4/",
+        "https://www.facebook.com/share/r/1CRvL47AJo/",
+        "https://www.threads.com/@artizaninside/post/DZcepjLjRFd",
+        "https://www.instagram.com/reel/DTxorqQE9dT/?igsh=dWFyc2I4ZndmZHo5",
+        "https://www.instagram.com/reel/DTE1r13Ew-b/?igsh=MXBpcW5oOWJxbjJlZQ==",
+        "https://www.instagram.com/reel/C-NeM9evxTo/?igsh=a2VoN3drb2Ywb3Fz",
+        "https://www.facebook.com/share/r/1GSBKCvtqU/",
+        "https://www.facebook.com/share/r/1DYLRpgmbV/",
+        "https://www.instagram.com/reel/DXjcrjGhV4m/?igsh=MXRxanViaWN5azdncg==",
+        "https://www.instagram.com/reel/DZy_UjkPIoI/?igsh=MWYzcnA1aGQ3cDl6cg==",
+        "https://www.instagram.com/reel/DZ5f_PPP8Oi/?igsh=MWhrcTRleWZjYWczMg==",
+        "https://www.instagram.com/reel/DZzcHG2P-86/?igsh=ZmN2Z2p3anhuYmcx",
+        "https://www.instagram.com/reel/DZxbVqnvQbz/?igsh=Z3F3bzY4c2MwNHB3",
+        "https://www.instagram.com/reel/DZw4ZP_Pvdf/?igsh=amw3emZsc3l4c3Bx",
+        "https://www.instagram.com/reel/DZ71xSMSxPr/?igsh=MTU5Y2oweWVrZ3MwcA==",
+        "https://youtube.com/shorts/F1UNY-iIQjI?si=8g3zM3wWStdk6QgZ",
+        "https://youtube.com/shorts/mtXmKvs1-80?si=Xuh1Bbqm8-sWSCeG",
+        "https://youtube.com/shorts/lzV1wHV__y8?si=Pu1SraHb4lDK5xP_",
+        "https://www.facebook.com/share/r/1D3K9ofJk7/",
+        "https://www.facebook.com/share/r/1DPpY7MNjC/",
+        "https://www.facebook.com/share/r/1JRU7zeP2F/",
+        "https://www.instagram.com/reel/DaB9fwBgVCl/?igsh=MW9lMzcwd25qazBrNA==",
+        "https://youtube.com/shorts/D3cIHEYfNes?si=WiqnqaJvbZNi2InP",
+        "https://youtube.com/shorts/0ZfrrUz0TC4?si=XyKhpMeMbgn5Sj9a"
+    ];
+
+    // ---------- rendering ----------
+    function classify(url) {
+        let m;
+        if ((m = url.match(/(?:youtube\.com\/shorts\/|youtu\.be\/)([\w-]+)/))) {
+            return { type: "youtube", id: m[1], key: "yt:" + m[1] };
+        }
+        if ((m = url.match(/instagram\.com\/(?:reel|p)\/([\w-]+)/))) {
+            return { type: "instagram", key: "ig:" + m[1] };
+        }
+        if ((m = url.match(/facebook\.com\/share\/[rv]\/([\w-]+)/))) {
+            return { type: "facebook", key: "fb:" + m[1] };
+        }
+        if ((m = url.match(/threads\.(?:com|net)\/.*\/post\/([\w-]+)/))) {
+            return { type: "threads", key: "th:" + m[1] };
+        }
+        if ((m = url.match(/pin\.it\/([\w-]+)/))) {
+            return { type: "pinterest", key: "pin:" + m[1] };
+        }
+        return { type: "link", key: "url:" + url };
+    }
+
+    const META = {
+        instagram: { cls: "instagram", ico: "\u{1F4F7}", name: "Instagram" },
+        facebook:  { cls: "facebook",  ico: "f",  name: "Facebook" },
+        threads:   { cls: "threads",   ico: "@",  name: "Threads" },
+        pinterest: { cls: "pinterest", ico: "P",  name: "Pinterest" },
+        link:      { cls: "link",      ico: "\u{1F517}", name: "Open link" }
+    };
+
+    function buildCard(url) {
+        const info = classify(url);
+        const a = document.createElement("a");
+        a.className = "card";
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+
+        if (info.type === "youtube") {
+            const img = document.createElement("img");
+            img.loading = "lazy";
+            img.src = "https://i.ytimg.com/vi/" + info.id + "/hqdefault.jpg";
+            img.alt = "YouTube Short";
+            a.appendChild(img);
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.textContent = "YouTube";
+            a.appendChild(badge);
+            const play = document.createElement("span");
+            play.className = "play";
+            a.appendChild(play);
+        } else {
+            const meta = META[info.type];
+            a.classList.add("brand", meta.cls);
+            const ico = document.createElement("div");
+            ico.className = "ico";
+            ico.textContent = meta.ico;
+            const name = document.createElement("div");
+            name.className = "name";
+            name.textContent = meta.name;
+            a.appendChild(ico);
+            a.appendChild(name);
+        }
+        return a;
+    }
+
+    function render(gridId, countId, links) {
+        const seen = new Set();
+        const unique = [];
+        links.forEach(function (u) {
+            const k = classify(u).key;
+            if (!seen.has(k)) { seen.add(k); unique.push(u); }
+        });
+        const grid = document.getElementById(gridId);
+        unique.forEach(function (u) { grid.appendChild(buildCard(u)); });
+        document.getElementById(countId).textContent =
+            unique.length + " ideas" +
+            (unique.length !== links.length ? " (" + (links.length - unique.length) + " duplicates hidden)" : "");
+    }
+
+    render("bedroom-grid", "bedroom-count", bedroomLinks);
+
+    // ---------- tabs ----------
+    document.querySelectorAll(".tab-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            const target = btn.getAttribute("data-tab");
+            document.querySelectorAll(".tab-btn").forEach(function (b) {
+                b.classList.toggle("active", b === btn);
+            });
+            document.querySelectorAll(".tab-panel").forEach(function (p) {
+                p.classList.toggle("active", p.id === target);
+            });
+        });
+    });
+    </script>
+</body>
+</html>
