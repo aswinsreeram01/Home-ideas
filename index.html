@@ -299,7 +299,8 @@
         .embed-live:hover .hide-btn { opacity: 1; }
         .hide-btn:hover { background: var(--gold-deep); }
 
-        /* Lightbox for viewing gallery photos at full resolution */
+        /* Lightbox: shows full-res photos, and plays YouTube videos in-app
+           instead of navigating away. */
         .lightbox {
             display: none;
             position: fixed; inset: 0;
@@ -309,7 +310,15 @@
             padding: 24px;
         }
         .lightbox.open { display: flex; }
-        .lightbox img {
+        .lightbox-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            max-width: 95vw;
+            max-height: 95vh;
+        }
+        .lightbox-content img {
             max-width: 95vw; max-height: 95vh;
             width: auto; height: auto;
             object-fit: contain;
@@ -317,6 +326,28 @@
             box-shadow: 0 20px 60px rgba(0,0,0,.5);
             image-rendering: auto;
         }
+        .lightbox-content iframe {
+            border: none;
+            border-radius: 8px;
+            background: #000;
+            box-shadow: 0 20px 60px rgba(0,0,0,.5);
+        }
+        .lightbox-content iframe.video-frame {
+            width: min(90vw, 400px);
+            aspect-ratio: 9 / 16;
+        }
+        .lightbox-fallback {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            letter-spacing: .5px;
+            color: var(--gold-light);
+            text-decoration: none;
+            border: 1px solid var(--gold-light);
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: background .15s, color .15s;
+        }
+        .lightbox-fallback:hover { background: var(--gold-light); color: var(--charcoal); }
         .lightbox-close {
             position: absolute; top: 20px; right: 28px;
             color: var(--gold-light); font-family: 'Playfair Display', serif;
@@ -377,7 +408,7 @@
 
     <div class="lightbox" id="lightbox">
         <button class="lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
-        <img id="lightbox-img" src="" alt="Full size photo">
+        <div class="lightbox-content" id="lightbox-content"></div>
     </div>
 
     <script>
@@ -3024,6 +3055,13 @@
             const play = document.createElement("span");
             play.className = "play";
             a.appendChild(play);
+            // Play in-app instead of leaving the page - unless the user wants a
+            // new tab (modifier-click / middle-click), which still works normally.
+            a.addEventListener("click", function (e) {
+                if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                e.preventDefault();
+                openVideoLightbox("https://www.youtube.com/embed/" + info.id + "?autoplay=1&rel=0");
+            });
         } else {
             const meta = META[info.type];
             a.classList.add("brand", meta.cls);
@@ -3306,7 +3344,7 @@
         a.appendChild(img);
         a.addEventListener("click", function (e) {
             e.preventDefault();
-            openLightbox(path);
+            openImageLightbox(path);
         });
         a.appendChild(makeHideBtn(function () { onHide(entry.key); }));
         return a;
@@ -3331,17 +3369,31 @@
 
     renderGrouped("landscape-groups", landscapeLinks);
 
-    // ---------- lightbox (shows the original, full-resolution file) ----------
+    // ---------- lightbox (full-res photos, and an in-app YouTube player) ----------
     const lightbox = document.getElementById("lightbox");
-    const lightboxImg = document.getElementById("lightbox-img");
+    const lightboxContent = document.getElementById("lightbox-content");
 
-    function openLightbox(path) {
-        lightboxImg.src = path;
+    function openImageLightbox(path) {
+        lightboxContent.innerHTML = "";
+        const img = document.createElement("img");
+        img.src = path;
+        img.alt = "Full size photo";
+        lightboxContent.appendChild(img);
+        lightbox.classList.add("open");
+    }
+    function openVideoLightbox(embedSrc) {
+        lightboxContent.innerHTML = "";
+        const iframe = document.createElement("iframe");
+        iframe.className = "video-frame";
+        iframe.src = embedSrc;
+        iframe.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture";
+        iframe.allowFullscreen = true;
+        lightboxContent.appendChild(iframe);
         lightbox.classList.add("open");
     }
     function closeLightbox() {
         lightbox.classList.remove("open");
-        lightboxImg.src = "";
+        lightboxContent.innerHTML = "";
     }
     document.getElementById("lightbox-close").addEventListener("click", closeLightbox);
     lightbox.addEventListener("click", function (e) {
